@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { memo } from "react";
 // Types
 import type { Match } from "../../api/types";
 import { MatchStatus } from "../../api/types";
@@ -21,7 +22,7 @@ interface ScoreRowProps {
   onToggleFavorite?: (id: string) => void;
 }
 
-function MatchRow({ match, animationState = "stable", isFavorite = false, onToggleFavorite }: ScoreRowProps) {
+const MatchRow = memo(function MatchRow({ match, animationState = "stable", isFavorite = false, onToggleFavorite }: ScoreRowProps) {
   const isLive = match.status === MatchStatus.Live;
   const isFinished = match.status === MatchStatus.Finished;
 
@@ -97,6 +98,6 @@ function MatchRow({ match, animationState = "stable", isFavorite = false, onTogg
       </div>
     </div>
   );
-}
+});
 
 export default MatchRow;

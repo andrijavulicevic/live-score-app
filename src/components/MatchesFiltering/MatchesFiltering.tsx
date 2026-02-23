@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Input from "../../ui/Input";
 import Select from "../../ui/Select";
 import { SortType } from "../../constants/sorting";
@@ -21,7 +22,7 @@ interface MatchesFilteringProps {
   onLeagueFilter: (league: string) => void;
 }
 
-function MatchesFiltering({
+const MatchesFiltering = memo(function MatchesFiltering({
   search,
   sort,
   leagues,
@@ -59,6 +60,6 @@ function MatchesFiltering({
       />
     </div>
   );
-}
+});
 
 export default MatchesFiltering;

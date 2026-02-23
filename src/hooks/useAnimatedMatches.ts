@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 // Types
 import type { Match } from "../api/types";
+// Hooks
+import { usePreviousValue } from "./usePrevious";
 
 export type AnimationState = "entering" | "stable" | "leaving";
 
@@ -12,23 +14,17 @@ const ENTER_DURATION = 1_000;
 const LEAVE_DURATION = 1_000;
 
 export function useAnimatedMatches(matches: Match[]): AnimatedMatch[] {
+  const previousMatches = usePreviousValue(matches)
   const [animatedMatches, setAnimatedMatches] = useState<AnimatedMatch[]>(() =>
     matches.map((m) => ({ ...m, animationState: "stable" }))
   );
 
-  const isFirstRender = useRef(true);
-  const prevMatchesRef = useRef<Match[]>(matches);
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      prevMatchesRef.current = matches;
-      return;
-    }
+    if (!previousMatches) return;
 
-    const prev = prevMatchesRef.current;
-    const prevIds = new Set(prev.map((m) => m.id));
+    const prevIds = new Set(previousMatches.map((m) => m.id));
     const newIds = new Set(matches.map((m) => m.id));
 
     const entering = new Set([...newIds].filter((id) => !prevIds.has(id)));
@@ -43,10 +39,17 @@ export function useAnimatedMatches(matches: Match[]): AnimatedMatch[] {
     });
 
     setAnimatedMatches((prev) => {
-      const current: AnimatedMatch[] = matches.map((m) => ({
-        ...m,
-        animationState: entering.has(m.id) ? "entering" : "stable",
-      }));
+      const current: AnimatedMatch[] = matches.map((m) => {
+        const isNewlyEntering = entering.has(m.id);
+        const isStillEntering =
+          !isNewlyEntering &&
+          prev.find((p) => p.id === m.id)?.animationState === "entering" &&
+          timersRef.current.has(m.id);
+        return {
+          ...m,
+          animationState: isNewlyEntering || isStillEntering ? "entering" : "stable",
+        };
+      });
 
       const stillLeaving: AnimatedMatch[] = prev.filter(
         (m) => m.animationState === "leaving" && !newIds.has(m.id)
@@ -74,7 +77,10 @@ export function useAnimatedMatches(matches: Match[]): AnimatedMatch[] {
     });
 
     leaving.forEach((id) => {
-      if (timersRef.current.has(id)) return;
+      const existing = timersRef.current.get(id);
+      if (existing !== undefined) {
+        clearTimeout(existing);
+      }
       const timer = setTimeout(() => {
         setAnimatedMatches((prev) => prev.filter((m) => m.id !== id));
         timersRef.current.delete(id);
@@ -82,13 +88,13 @@ export function useAnimatedMatches(matches: Match[]): AnimatedMatch[] {
       timersRef.current.set(id, timer);
     });
 
-    prevMatchesRef.current = matches;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches]);
 
-
   useEffect(() => {
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach(clearTimeout);
+      timers.forEach(clearTimeout);
     };
   }, []);
 
